@@ -9,7 +9,8 @@ def lambda_handler(event, context):
     invocation_type = 'RequestResponse'
 
     payload = {
-        "question": event["question"]
+        "question": event["question"],
+        "simplify_response": event["simplify_response"]
     }
 
     client = boto3.client('lambda')
