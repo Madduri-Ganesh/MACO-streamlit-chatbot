@@ -1,6 +1,7 @@
 import boto3
 import streamlit as st
 import botocore
+import os
 
 # Add the case s3 Bucket
 BUCKET_NAME = os.environ['BUCKET_NAME']
@@ -14,7 +15,6 @@ def fetch_pdf(case_name):
     key = f"{case_name}.pdf"
     print("Case Key : ",key)
     try:
-        print("try")
         response = s3_client.get_object(Bucket=BUCKET_NAME, Key=key)
         pdf_bytes = response["Body"].read()
         return pdf_bytes
