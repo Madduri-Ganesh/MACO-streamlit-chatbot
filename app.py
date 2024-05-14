@@ -19,7 +19,6 @@ float_init(theme=True, include_unstable_primary=False)
 if "history" not in st.session_state:
     st.session_state.history = []
     st.session_state.case = ""
-    st.session_state.prev_case = ""
     logger.info('New History Created !!')
 
 st.sidebar.title("**Sample Queries:**")
@@ -48,16 +47,40 @@ col1, col2 = st.columns([1, 1])
 width = streamlit_js_eval(js_expressions='window.innerWidth')
 height = streamlit_js_eval(js_expressions='screen.height')
 
+# if set to True will used iframe to dispaly pdf else will use streamlit_pdf_viewer to display pdf
+# defaulted to False
+iframe = False
+
 curr_case_name = ""
+pdf_display = True
 if height is not None:
     container_height = height - 350
 else:
     print("Failed to get height")
-    container_height = 700
+    container_height = 600
+
+
+def pdf_fetch():
+    with col2:
+        if curr_case_name or st.session_state.case:
+            pdf_name = curr_case_name if curr_case_name else st.session_state.case 
+            st.markdown("### Case "+ pdf_name + " Pdf")
+            pdf_bytes = fetch_pdf(pdf_name)
+            pdf_height = height - 370 if height is not None else 580
+            pdf_width = (width // 2) if width is not None else 400
+            
+            if not iframe:
+                spv.pdf_viewer(pdf_bytes, width= pdf_width, height=pdf_height)
+            else:
+                pdf_preview = base64.b64encode(pdf_bytes).decode("utf-8")
+                st.markdown(
+                    f'<iframe src="data:application/pdf;base64,{pdf_preview}" width="100%" height="{pdf_height}" type="application/pdf"></iframe>',
+                    unsafe_allow_html=True,
+                )
 
 with col1: 
     toggle_var = st.toggle("XML Response")
-    
+
     with st.container(height=container_height):
         prompt = ""
         # Display a text box for input at the bottom
@@ -86,19 +109,21 @@ with col1:
             if match:
                 case_name = match.group(1).strip()  # Remove leading/trailing whitespace
                 st.session_state.case = case_name
+                curr_case_name = case_name
                 response_text = "Case Opened !!"
                 print("print session in if:", st.session_state.case)
                 the_response = response_text
-                curr_case_name = case_name
             elif st.session_state.case:
                 case_name = st.session_state.case
-                curr_case_name = st.session_state.case
                 print("print session in elif:", st.session_state.case)
                 temp_prompt = f"{prompt} in {case_name}"
                 print("prompt ",temp_prompt)
                 # Prepare and invoke the lambda function since this is not a new case
                 event = {"question": temp_prompt, 
                         "simplify_response": toggle_var}
+                
+                pdf_fetch()
+                pdf_display = False
 
                 #Invoking Agent
                 response = agenthelper.lambda_handler(event, None)
@@ -122,26 +147,7 @@ with col1:
             st.session_state.history.append({"question": prompt, "answer": full_response.strip()})
 
 with col2:
-    if curr_case_name:
-        st.markdown("### Case "+ curr_case_name + " Pdf")
-        print("Case ",curr_case_name)
-        pdf_bytes = fetch_pdf(curr_case_name) 
-        if height is not None and width is not None: 
-            pdf_height = height - 370
-            pdf_width = (width // 2)
-        else:
-            print("Failed to get pdf height or width")
-            pdf_height = 800
-            pdf_width = 400
-        
-        spv.pdf_viewer(pdf_bytes, width= pdf_width, height=pdf_height)
-        
-        # st.experimental_memo(render_pdf)
-        # st.markdown("### Case Report Preview")
-        # pdf_bytes = fetch_pdf(caseName)
-        
-        # pdf_preview = base64.b64encode(pdf_bytes).decode("utf-8")
-        # st.markdown(
-        #     f'<iframe src="data:application/pdf;base64,{pdf_preview}" width="100%" height="450vh" type="application/pdf"></iframe>',
-        #     unsafe_allow_html=True,
-        # )
+    if pdf_display:
+        pdf_fetch()
+
+
